@@ -1,0 +1,5 @@
+# Analysis options for the TTS app.
+analyzer:
+  errors:
+    deprecated_member_use: ignore
+    include_file_not_found: ignore

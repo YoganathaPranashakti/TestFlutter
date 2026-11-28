@@ -53,12 +53,12 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {
       // fallback ke engine default bila tidak tersedia
     }
-    _tts.setCompletionHandler((String? text) async {
+    _tts.setCompletionHandler(() {
       if (mounted) {
         setState(() => _isSpeaking = false);
       }
     });
-    _tts.setErrorHandler((String? error) {
+    _tts.setErrorHandler((dynamic message) {
       if (mounted) {
         setState(() => _isSpeaking = false);
       }
@@ -144,7 +144,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 24.0),
             DropdownButtonFormField<String>(
-              value: _language,
+              initialValue: _language,
               decoration: InputDecoration(
                 labelText: 'Pilih Bahasa',
                 border: OutlineInputBorder(
@@ -161,7 +161,6 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 24.0),
             Row(
-              mainAxisAlignment: MainAxisAlignment.stretch,
               children: [
                 Expanded(
                   child: FilledButton.icon(
