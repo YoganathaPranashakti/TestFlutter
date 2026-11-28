@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 void main() {
   runApp(const TestFlutterApp());
@@ -10,7 +11,7 @@ class TestFlutterApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'YP Lab - TestFlutter',
+      title: 'Aplikasi TTS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -33,18 +34,87 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _counter = 0;
+  final TextEditingController _textController = TextEditingController();
+  final FlutterTts _tts = FlutterTts();
 
-  void _increment() {
-    setState(() {
-      _counter++;
+  bool _isSpeaking = false;
+  String _language = 'id-ID';
+
+  @override
+  void initState() {
+    super.initState();
+    _setupTts();
+  }
+
+  Future<void> _setupTts() async {
+    try {
+      await _tts.setEngine('default');
+      await _tts.setLanguage(_language);
+    } catch (_) {
+      // fallback ke engine default bila tidak tersedia
+    }
+    _tts.setCompletionHandler((String? text) async {
+      if (mounted) {
+        setState(() => _isSpeaking = false);
+      }
+    });
+    _tts.setErrorHandler((String? error) {
+      if (mounted) {
+        setState(() => _isSpeaking = false);
+      }
     });
   }
 
-  void _reset() {
+  Future<void> _speak() async {
+    final text = _textController.text.trim();
+    if (text.isEmpty) {
+      _showSnackBar('Silakan masukkan teks yang ingin dibacakan.');
+      return;
+    }
+    if (_isSpeaking) {
+      await _tts.stop();
+      return;
+    }
+    await _tts.stop();
+    await _tts.speak(text);
+    if (mounted) {
+      setState(() => _isSpeaking = true);
+    }
+  }
+
+  Future<void> _stop() async {
+    await _tts.stop();
+    if (mounted) {
+      setState(() => _isSpeaking = false);
+    }
+  }
+
+  Future<void> _onLanguageChanged(String? value) async {
+    if (value == null) return;
     setState(() {
-      _counter = 0;
+      _language = value;
     });
+    await _tts.setLanguage(value);
+    await _tts.stop();
+    if (mounted) {
+      setState(() {
+        _isSpeaking = false;
+      });
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tts.stop();
+    _textController.dispose();
+    super.dispose();
   }
 
   @override
@@ -52,60 +122,72 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('YP Lab - TestFlutter'),
+        title: const Text('Aplikasi Text-to-Speech'),
         centerTitle: true,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(
-                Icons.check_circle_outline,
-                size: 72,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Build berhasil!',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _textController,
+              maxLines: 4,
+              keyboardType: TextInputType.multiline,
+              decoration: InputDecoration(
+                labelText: 'Masukkan Teks',
+                hintText: 'Contoh: Halo, selamat pagi!',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Status koneksi: terhubung',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 24.0),
+            DropdownButtonFormField<String>(
+              value: _language,
+              decoration: InputDecoration(
+                labelText: 'Pilih Bahasa',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
                 ),
               ),
-              const SizedBox(height: 32),
-              Text(
-                '$_counter',
-                style: theme.textTheme.displayLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  FilledButton.icon(
-                    onPressed: _increment,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Tambah'),
+              items: const [
+                DropdownMenuItem(value: 'id-ID', child: Text('Bahasa Indonesia')),
+                DropdownMenuItem(value: 'en-US', child: Text('English (US)')),
+                DropdownMenuItem(value: 'en-GB', child: Text('English (UK)')),
+                DropdownMenuItem(value: 'ja-JP', child: Text('Bahasa Jepang')),
+              ],
+              onChanged: _onLanguageChanged,
+            ),
+            const SizedBox(height: 24.0),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _isSpeaking ? null : _speak,
+                    icon: const Icon(Icons.volume_up),
+                    label: const Text('Bicarakan'),
                   ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: _reset,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reset'),
+                ),
+                const SizedBox(width: 12.0),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSpeaking ? _stop : null,
+                    icon: const Icon(Icons.stop),
+                    label: const Text('Berhenti'),
                   ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 32.0),
+            Text(
+              _isSpeaking ? 'Sedang berbicara...' : 'Siap',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: _isSpeaking ? Colors.amber : Colors.green,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
