@@ -24,15 +24,25 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Flutter info
+        run: |
+          flutter --version
+          flutter doctor -v
+
       - name: Generate struktur Android jika belum ada
         run: |
           if [ ! -d "android" ]; then
             flutter create . --platforms=android
           fi
 
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Flutter analyze
+        run: flutter analyze
+
       - name: Build APK Release
         run: |
-          flutter pub get
           flutter build apk --release
 
       - name: Upload File APK
